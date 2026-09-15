@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <cucascade/cuda/driver_compat.hpp>
 #include <cucascade/cuda/event.hpp>
 #include <cucascade/cudf/builtin_converters.hpp>
 #include <cucascade/cudf/gpu_data_representation.hpp>
@@ -325,28 +326,35 @@ struct BatchCopyAccumulator {
   void flush(rmm::cuda_stream_view stream, cudaMemcpySrcAccessOrder src_order)
   {
     if (count() == 0) { return; }
+    bool submitted = false;
 #if CUDART_VERSION >= 12080
-    cudaMemcpyAttributes attr{};
-    attr.srcAccessOrder = src_order;
-    attr.flags          = cudaMemcpyFlagDefault;
-    // Single-attribute template overload (cuda_runtime.h): deduces direction from pointer types.
-    // NOTE: cudaMemcpyBatchAsync requires a real (non-default) CUDA stream.
-    // CUDA 12.x has a failIdx parameter that was removed in CUDA 13.
+    // cudaMemcpyBatchAsync also needs a >= 12.8 driver: a newer toolkit on an older driver
+    // (minor-version compatibility) gets cudaErrorCallRequiresNewerDriver, so decide at runtime.
+    if (cucascade::cuda::supports_batched_memcpy()) {
+      cudaMemcpyAttributes attr{};
+      attr.srcAccessOrder = src_order;
+      attr.flags          = cudaMemcpyFlagDefault;
+      // Single-attribute template overload (cuda_runtime.h): deduces direction from pointer
+      // types. NOTE: cudaMemcpyBatchAsync requires a real (non-default) CUDA stream.
+      // CUDA 12.x has a failIdx parameter that was removed in CUDA 13.
 #if CUDART_VERSION < 13000
-    CUCASCADE_CUDA_TRY(cudaMemcpyBatchAsync(
-      dsts.data(), srcs.data(), sizes.data(), count(), attr, nullptr, stream.value()));
+      CUCASCADE_CUDA_TRY(cudaMemcpyBatchAsync(
+        dsts.data(), srcs.data(), sizes.data(), count(), attr, nullptr, stream.value()));
 #else
-    CUCASCADE_CUDA_TRY(
-      cudaMemcpyBatchAsync(dsts.data(), srcs.data(), sizes.data(), count(), attr, stream.value()));
+      CUCASCADE_CUDA_TRY(cudaMemcpyBatchAsync(
+        dsts.data(), srcs.data(), sizes.data(), count(), attr, stream.value()));
 #endif
-#else
-    // cudaMemcpyBatchAsync requires CUDA 12.8+; fall back to individual copies.
-    (void)src_order;
-    for (std::size_t i = 0; i < count(); ++i) {
-      CUCASCADE_CUDA_TRY(
-        cudaMemcpyAsync(dsts[i], srcs[i], sizes[i], cudaMemcpyDefault, stream.value()));
+      submitted = true;
     }
 #endif
+    if (!submitted) {
+      // Toolkit or driver older than CUDA 12.8: fall back to individual copies.
+      (void)src_order;
+      for (std::size_t i = 0; i < count(); ++i) {
+        CUCASCADE_CUDA_TRY(
+          cudaMemcpyAsync(dsts[i], srcs[i], sizes[i], cudaMemcpyDefault, stream.value()));
+      }
+    }
     // Clear so subsequent add()+flush() cycles do not resubmit already-issued ops.
     dsts.clear();
     srcs.clear();

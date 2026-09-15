@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <cucascade/cuda/driver_compat.hpp>
 #include <cucascade/memory/small_pinned_host_memory_resource.hpp>
 
 #include <cuda_runtime_api.h>
@@ -82,7 +83,7 @@ int small_pinned_host_memory_resource::device_of_stream(::cuda::stream_ref strea
   // cudaEventRecord requires the event and stream to be on the same device.
   // Ask the driver which device this stream belongs to rather than assuming it
   // matches the calling thread's current device.
-  if (::cudaStreamGetDevice(stream.get(), &device) == cudaSuccess) { return device; }
+  if (cucascade::cuda::stream_get_device(stream.get(), &device) == cudaSuccess) { return device; }
   (void)::cudaGetLastError();
   if (::cudaGetDevice(&device) == cudaSuccess) { return device; }
   (void)::cudaGetLastError();
@@ -140,7 +141,7 @@ void small_pinned_host_memory_resource::release_event_locked(cudaEvent_t event, 
   }
 }
 
-void* small_pinned_host_memory_resource::allocate([[maybe_unused]] cuda::stream_ref stream,
+void* small_pinned_host_memory_resource::allocate([[maybe_unused]] ::cuda::stream_ref stream,
                                                   std::size_t bytes,
                                                   [[maybe_unused]] std::size_t alignment)
 {
@@ -187,7 +188,7 @@ void* small_pinned_host_memory_resource::allocate([[maybe_unused]] cuda::stream_
   return slab.ptr;
 }
 
-void small_pinned_host_memory_resource::deallocate([[maybe_unused]] cuda::stream_ref stream,
+void small_pinned_host_memory_resource::deallocate([[maybe_unused]] ::cuda::stream_ref stream,
                                                    void* ptr,
                                                    std::size_t bytes,
                                                    [[maybe_unused]] std::size_t alignment) noexcept

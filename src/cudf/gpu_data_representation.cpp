@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <cucascade/cuda/driver_compat.hpp>
 #include <cucascade/cuda/event.hpp>
 #include <cucascade/cudf/gpu_data_representation.hpp>
 #include <cucascade/error.hpp>
@@ -42,7 +43,7 @@ namespace {
 void validate_stream_device(rmm::cuda_stream_view stream, int expected_device)
 {
   int stream_device = -1;
-  CUCASCADE_CUDA_TRY(::cudaStreamGetDevice(stream.value(), &stream_device));
+  CUCASCADE_CUDA_TRY(cucascade::cuda::stream_get_device(stream.value(), &stream_device));
   if (stream_device != expected_device) {
     CUCASCADE_FAIL("stream belongs to CUDA device " + std::to_string(stream_device) +
                    " but this representation's memory lives on device " +

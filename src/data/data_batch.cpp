@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <cucascade/cuda/driver_compat.hpp>
 #include <cucascade/data/data_batch.hpp>
 #include <cucascade/error.hpp>
 
@@ -121,7 +122,7 @@ void data_batch::record_reader_event(rmm::cuda_stream_view reader_stream)
 
   int reader_device = -1;
   try {
-    CUCASCADE_CUDA_TRY(::cudaStreamGetDevice(reader_stream.value(), &reader_device));
+    CUCASCADE_CUDA_TRY(cucascade::cuda::stream_get_device(reader_stream.value(), &reader_device));
     rmm::cuda_set_device_raii device_guard{rmm::cuda_device_id{reader_device}};
     std::lock_guard<std::mutex> lock(_reader_events_mutex);
     auto& pool = _reader_event_pools[reader_device];
