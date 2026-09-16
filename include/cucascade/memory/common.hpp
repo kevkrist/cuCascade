@@ -83,6 +83,37 @@ using DeviceMemoryResourceFactoryFn =
  */
 void enable_pool_peer_access_for_all_visible_devices(cudaMemPool_t pool, int owner_device_id);
 
+/// Outcome of `grant_pool_peer_access` for one (owner pool, peer device) pair.
+enum class pool_peer_access_status {
+  granted,           ///< `cudaMemPoolSetAccess(ProtReadWrite)` succeeded, or peer == owner.
+  not_peer_capable,  ///< `cudaDeviceCanAccessPeer(peer, owner)` reported no access.
+  peer_dma_broken,   ///< The empirical probe found direct peer DMA broken for this pair.
+  set_access_failed  ///< `cudaMemPoolSetAccess` returned an error; see `error`.
+};
+
+struct pool_peer_access_result {
+  pool_peer_access_status status;
+  cudaError_t error;  ///< `cudaSuccess` unless `status == set_access_failed`.
+};
+
+/**
+ * @brief Grant one peer device ReadWrite access to a cudaMallocAsync pool owned by another device.
+ *
+ * Per-pair building block of `enable_pool_peer_access_for_all_visible_devices` with the same
+ * safety policy: the grant is skipped when the pair is not P2P-capable or when the empirical
+ * probe (`probe_peer_dma_works(peer, owner)`) found direct DMA broken — on such pairs pool access
+ * must stay at the default ProtNone so `cudaMemcpyPeer*` keeps host-staging. Runs the probe on
+ * first use. Idempotent. Does not touch legacy `cudaDeviceEnablePeerAccess` state.
+ *
+ * @param pool Pool the owner allocates from (`rmm::mr::cuda_async_memory_resource::pool_handle()`
+ *             or `cudaDeviceGetMemPool`).
+ * @param owner_device_id Device whose allocations come from @p pool.
+ * @param peer_device_id Device that should be able to read/write @p pool's allocations.
+ */
+[[nodiscard]] pool_peer_access_result grant_pool_peer_access(cudaMemPool_t pool,
+                                                             int owner_device_id,
+                                                             int peer_device_id);
+
 /**
  * @brief Empirical probe: does direct peer DMA actually move bytes between two GPUs?
  *

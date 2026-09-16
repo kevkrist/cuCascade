@@ -617,6 +617,11 @@ rmm::device_async_resource_ref reservation_aware_resource_adaptor::get_upstream_
   return get().get_upstream_resource();
 }
 
+cudaMemPool_t reservation_aware_resource_adaptor::pool_handle() const noexcept
+{
+  return get().pool_handle();
+}
+
 std::size_t reservation_aware_resource_adaptor::get_available_memory() const noexcept
 {
   return get().get_available_memory();

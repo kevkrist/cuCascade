@@ -194,29 +194,44 @@ void set_access_on_pool(cudaMemPool_t pool, int owner_device_id, int device_coun
 {
   for (int peer = 0; peer < device_count; ++peer) {
     if (peer == owner_device_id) { continue; }
-    int can_access = 0;
-    if (cudaDeviceCanAccessPeer(&can_access, peer, owner_device_id) != cudaSuccess || !can_access) {
-      (void)cudaGetLastError();
-      continue;
-    }
-    // Skip pairs where the empirical probe shows that direct peer DMA does NOT
-    // actually move bytes on this hardware (consumer Intel platforms etc.).
-    // Granting cudaMemPoolSetAccess(ProtReadWrite) on those pairs would force
-    // cudaMemcpyPeer* down a silent-no-op path for pool-allocated memory; with
-    // pool access left at the default ProtNone instead, the driver host-stages
-    // automatically. cudaDeviceEnablePeerAccess for the broken pair has
-    // already been disabled by the probe.
-    if (!p2p_dma_works_cached(peer, owner_device_id)) continue;
-    cudaMemAccessDesc desc{};
-    desc.location.type = cudaMemLocationTypeDevice;
-    desc.location.id   = peer;
-    desc.flags         = cudaMemAccessFlagsProtReadWrite;
-    if (cudaMemPoolSetAccess(pool, &desc, 1) != cudaSuccess) {
-      (void)cudaGetLastError();  // best effort
-    }
+    (void)grant_pool_peer_access(pool, owner_device_id, peer);  // best effort
   }
 }
 }  // namespace
+
+pool_peer_access_result grant_pool_peer_access(cudaMemPool_t pool,
+                                               int owner_device_id,
+                                               int peer_device_id)
+{
+  // A device always has access to its own pool.
+  if (peer_device_id == owner_device_id) { return {pool_peer_access_status::granted, cudaSuccess}; }
+  int can_access = 0;
+  if (cudaDeviceCanAccessPeer(&can_access, peer_device_id, owner_device_id) != cudaSuccess ||
+      !can_access) {
+    (void)cudaGetLastError();
+    return {pool_peer_access_status::not_peer_capable, cudaSuccess};
+  }
+  // Skip pairs where the empirical probe shows that direct peer DMA does NOT
+  // actually move bytes on this hardware (consumer Intel platforms etc.).
+  // Granting cudaMemPoolSetAccess(ProtReadWrite) on those pairs would force
+  // cudaMemcpyPeer* down a silent-no-op path for pool-allocated memory; with
+  // pool access left at the default ProtNone instead, the driver host-stages
+  // automatically. cudaDeviceEnablePeerAccess for the broken pair has
+  // already been disabled by the probe.
+  if (!p2p_dma_works_cached(peer_device_id, owner_device_id)) {
+    return {pool_peer_access_status::peer_dma_broken, cudaSuccess};
+  }
+  cudaMemAccessDesc desc{};
+  desc.location.type    = cudaMemLocationTypeDevice;
+  desc.location.id      = peer_device_id;
+  desc.flags            = cudaMemAccessFlagsProtReadWrite;
+  cudaError_t const err = cudaMemPoolSetAccess(pool, &desc, 1);
+  if (err != cudaSuccess) {
+    (void)cudaGetLastError();
+    return {pool_peer_access_status::set_access_failed, err};
+  }
+  return {pool_peer_access_status::granted, cudaSuccess};
+}
 
 void enable_pool_peer_access_for_all_visible_devices(cudaMemPool_t pool, int owner_device_id)
 {

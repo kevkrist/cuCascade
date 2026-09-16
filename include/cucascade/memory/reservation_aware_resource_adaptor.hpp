@@ -116,6 +116,14 @@ class reservation_aware_resource_adaptor
   rmm::device_async_resource_ref get_upstream_resource() const noexcept;
 
   /**
+   * @brief Gets the CUDA memory pool backing the upstream resource.
+   * @return The cudaMallocAsync pool handle passed at construction or recovered from the
+   *         upstream (`rmm::mr::cuda_async_*_memory_resource::pool_handle()`); nullptr when the
+   *         upstream is not pool-based.
+   */
+  [[nodiscard]] cudaMemPool_t pool_handle() const noexcept;
+
+  /**
    * @brief Returns the available memory left in the resource
    */
   std::size_t get_available_memory() const noexcept;
