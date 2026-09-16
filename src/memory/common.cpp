@@ -217,8 +217,11 @@ pool_peer_access_result grant_pool_peer_access(cudaMemPool_t pool,
   // cudaMemcpyPeer* down a silent-no-op path for pool-allocated memory; with
   // pool access left at the default ProtNone instead, the driver host-stages
   // automatically. cudaDeviceEnablePeerAccess for the broken pair has
-  // already been disabled by the probe.
-  if (!p2p_dma_works_cached(peer_device_id, owner_device_id)) {
+  // already been disabled by the probe. The grant is ReadWrite, so the peer
+  // may both pull from (owner -> peer) and push into (peer -> owner) the pool:
+  // both DMA directions must have passed the probe.
+  if (!p2p_dma_works_cached(peer_device_id, owner_device_id) ||
+      !p2p_dma_works_cached(owner_device_id, peer_device_id)) {
     return {pool_peer_access_status::peer_dma_broken, cudaSuccess};
   }
   cudaMemAccessDesc desc{};

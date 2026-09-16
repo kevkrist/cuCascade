@@ -87,7 +87,7 @@ void enable_pool_peer_access_for_all_visible_devices(cudaMemPool_t pool, int own
 enum class pool_peer_access_status {
   granted,           ///< `cudaMemPoolSetAccess(ProtReadWrite)` succeeded, or peer == owner.
   not_peer_capable,  ///< `cudaDeviceCanAccessPeer(peer, owner)` reported no access.
-  peer_dma_broken,   ///< The empirical probe found direct peer DMA broken for this pair.
+  peer_dma_broken,   ///< The empirical probe found direct peer DMA broken in either direction.
   set_access_failed  ///< `cudaMemPoolSetAccess` returned an error; see `error`.
 };
 
@@ -101,9 +101,10 @@ struct pool_peer_access_result {
  *
  * Per-pair building block of `enable_pool_peer_access_for_all_visible_devices` with the same
  * safety policy: the grant is skipped when the pair is not P2P-capable or when the empirical
- * probe (`probe_peer_dma_works(peer, owner)`) found direct DMA broken — on such pairs pool access
- * must stay at the default ProtNone so `cudaMemcpyPeer*` keeps host-staging. Runs the probe on
- * first use. Idempotent. Does not touch legacy `cudaDeviceEnablePeerAccess` state.
+ * probe found direct DMA broken in either direction (`probe_peer_dma_works(peer, owner)` for
+ * pushes into the pool, `probe_peer_dma_works(owner, peer)` for pulls out of it) — on such pairs
+ * pool access must stay at the default ProtNone so `cudaMemcpyPeer*` keeps host-staging. Runs the
+ * probe on first use. Idempotent. Does not touch legacy `cudaDeviceEnablePeerAccess` state.
  *
  * @param pool Pool the owner allocates from (`rmm::mr::cuda_async_memory_resource::pool_handle()`
  *             or `cudaDeviceGetMemPool`).
