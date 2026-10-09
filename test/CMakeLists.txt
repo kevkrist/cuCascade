@@ -53,6 +53,16 @@ if(NOT CUCASCADE_TOPOLOGY_ONLY)
   target_link_libraries(cucascade_tests PRIVATE cucascade Catch2::Catch2
                                                 CUDA::cudart_static)
 
+  add_executable(
+    cucascade_accounting_tests memory/test_memory_allocation_origin.cpp
+                               memory/test_allocation_metadata_failure.cpp)
+  target_include_directories(cucascade_accounting_tests
+                             PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  target_link_libraries(
+    cucascade_accounting_tests PRIVATE cucascade Catch2::Catch2WithMain
+                                       CUDA::cudart_static)
+  add_test(NAME cucascade_accounting_tests COMMAND cucascade_accounting_tests)
+
   # Register tests with CTest
   add_test(NAME cucascade_tests COMMAND cucascade_tests)
 endif()

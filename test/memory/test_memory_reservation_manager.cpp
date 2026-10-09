@@ -242,15 +242,18 @@ SCENARIO("multi-reservation memory_resource mismatch", "[memory_space]")
       auto* buff2 = mr->allocate(stream2, large_alloc_size, alignof(std::max_align_t));
       REQUIRE(mr->get_allocated_bytes(stream2) == large_alloc_size);
       REQUIRE(mr->get_available_memory(stream2) == mr->get_available_memory());
-      THEN(
-        "allocations from another memory resource is absorbed by other stream as extra reservation")
+      THEN("cross-stream frees debit the allocation origin")
       {
         mr->deallocate(stream1, buff2, large_alloc_size, alignof(std::max_align_t));
+        CHECK(mr->get_allocated_bytes(stream1) == small_alloc_size);
+        CHECK(mr->get_allocated_bytes(stream2) == 0);
         CHECK(mr->get_available_memory_print(stream1) ==
-              mr->get_available_memory() + large_alloc_size + res_size - small_alloc_size);
+              mr->get_available_memory() + res_size - small_alloc_size);
 
         mr->deallocate(stream2, buff1, small_alloc_size, alignof(std::max_align_t));
-        CHECK(mr->get_available_memory_print(stream2) == mr->get_available_memory());
+        CHECK(mr->get_allocated_bytes(stream1) == 0);
+        CHECK(mr->get_allocated_bytes(stream2) == 0);
+        CHECK(mr->get_available_memory_print(stream2) == mr->get_available_memory() + res_size);
       }
     }
   }

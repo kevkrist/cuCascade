@@ -31,23 +31,13 @@ namespace cucascade {
 namespace memory {
 
 /**
- * @brief A memory resource adaptor that tracks allocations on a per-stream basis.
+ * @brief Admit allocations against a per-thread or per-stream reservation and track their ownership
+ * until free.
  *
- * This adaptor wraps another device memory resource and provides detailed tracking
- * of allocations per CUDA stream. It maintains both current allocated bytes and
- * the maximum allocated bytes observed for each stream.
- *
- * Features:
- * - Per-stream allocation tracking
- * - Maximum allocated bytes tracking per stream
- * - Thread-safe operations using atomic operations and mutexes
- * - Reset capability for maximum allocated bytes
- * - Race condition handling for deallocations after reset
- *
- * Based on RMM's tracking_resource_adaptor but extended for per-stream tracking.
- *
- * This class inherits from ::cuda::mr::shared_resource, making it copyable and
- * movable via reference counting. Copies share the same underlying state.
+ * A scoped allocation context selects the reservation independently of the CUDA execution stream.
+ * Every allocation retains its origin for deallocation, including unreserved allocations. Reset
+ * releases unused reservation capacity immediately; outstanding allocations remain globally charged
+ * and cannot debit a subsequently attached reservation. Copies share the same underlying state.
  */
 class reservation_aware_resource_adaptor
   : public ::cuda::mr::shared_resource<detail::reservation_aware_resource_adaptor_impl> {
@@ -60,6 +50,39 @@ class reservation_aware_resource_adaptor
   using stream_ordered_tracker_state = impl_type::stream_ordered_tracker_state;
   using allocation_tracker_iface     = impl_type::allocation_tracker_iface;
   using AllocationTrackingScope      = impl_type::AllocationTrackingScope;
+
+  /**
+   * @brief Override allocation admission on the constructing host thread for this adaptor.
+   *
+   * The captured origin may be unreserved. Nested guards restore the previous context, and other
+   * adaptor instances are unaffected. A reset origin rejects further allocations. The guard must be
+   * moved and destroyed on its constructing thread. The shared resource handle keeps the adaptor
+   * alive; allocation records do not retain unused reservation capacity.
+   */
+  class scoped_allocation_context {
+   public:
+    scoped_allocation_context(scoped_allocation_context&&) noexcept        = default;
+    scoped_allocation_context& operator=(scoped_allocation_context&&)      = delete;
+    scoped_allocation_context(scoped_allocation_context const&)            = delete;
+    scoped_allocation_context& operator=(scoped_allocation_context const&) = delete;
+
+   private:
+    friend class reservation_aware_resource_adaptor;
+    scoped_allocation_context(shared_base resource, ::cuda::stream_ref stream)
+      : _resource(std::move(resource)), _context(_resource.get(), stream)
+    {
+    }
+
+    shared_base _resource;
+    impl_type::allocation_context _context;
+  };
+
+  /** @brief Capture the configured thread or stream origin and activate it until the returned guard
+   * is destroyed. */
+  [[nodiscard]] scoped_allocation_context allocation_context_for(::cuda::stream_ref stream)
+  {
+    return scoped_allocation_context{*this, stream};
+  }
 
   friend void get_property(reservation_aware_resource_adaptor const&,
                            ::cuda::mr::device_accessible) noexcept
@@ -142,14 +165,20 @@ class reservation_aware_resource_adaptor
   std::size_t get_peak_allocated_bytes(::cuda::stream_ref stream) const;
 
   /**
-   * @brief Gets the total currently allocated bytes across all streams.
-   * @return The total allocated bytes
+   * @brief Get globally committed admission bytes, including unused attached reservation capacity.
+   *
+   * Each attached reservation contributes the larger of its reserved size and live/provisional
+   * allocation charge. Detached and unreserved allocations contribute their live charge. Logical
+   * charges end when upstream frees are submitted; CUDA resident memory can remain allocated until
+   * those asynchronous operations complete.
+   * @return The total committed bytes
    */
   std::size_t get_total_allocated_bytes() const;
 
   /**
-   * @brief Gets the peak total allocated bytes across all streams.
-   * @return The peak total allocated bytes
+   * @brief Get the peak global admission commitment, including provisional attempts and reservation
+   * capacity.
+   * @return The peak committed bytes
    */
   std::size_t get_peak_total_allocated_bytes() const;
 

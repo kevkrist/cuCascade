@@ -33,7 +33,10 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <set>
+#include <thread>
+#include <unordered_map>
 
 namespace cucascade {
 namespace memory {
@@ -41,8 +44,11 @@ namespace detail {
 
 class reservation_aware_resource_adaptor_impl {
  public:
+  struct stream_ordered_tracker_state;
+
   struct device_reserved_arena : public reserved_arena {
     friend class reservation_aware_resource_adaptor_impl;
+    friend struct stream_ordered_tracker_state;
 
     explicit device_reserved_arena(reservation_aware_resource_adaptor_impl& impl,
                                    std::size_t bytes,
@@ -51,7 +57,10 @@ class reservation_aware_resource_adaptor_impl {
     {
     }
 
-    ~device_reserved_arena() noexcept { _impl->do_release_reservation(this); }
+    ~device_reserved_arena() noexcept
+    {
+      if (_impl) { _impl->do_release_reservation(this); }
+    }
 
     bool grow_by(std::size_t additional_bytes) final
     {
@@ -72,6 +81,7 @@ class reservation_aware_resource_adaptor_impl {
 
    private:
     reservation_aware_resource_adaptor_impl* _impl;
+    std::weak_ptr<stream_ordered_tracker_state> _owner;
   };
 
   /**
@@ -91,12 +101,18 @@ class reservation_aware_resource_adaptor_impl {
       std::unique_ptr<reservation_limit_policy> reservation_policy,
       std::unique_ptr<oom_handling_policy> oom_policy);
 
-    std::size_t check_reservation_and_handle_overflow(reservation_aware_resource_adaptor_impl& impl,
-                                                      std::size_t allocation_size,
-                                                      ::cuda::stream_ref stream);
+    ~stream_ordered_tracker_state() noexcept;
 
-   private:
-    mutable std::mutex _arbitration_mutex;
+    static std::shared_ptr<stream_ordered_tracker_state> create(
+      std::unique_ptr<device_reserved_arena> arena,
+      std::unique_ptr<reservation_limit_policy> policy,
+      std::unique_ptr<oom_handling_policy> oom_policy);
+
+    /** @brief Detach the arena and release unused reservation capacity immediately. */
+    void close() noexcept;
+
+    mutable std::mutex arbitration_mutex;
+    bool closed{false};
   };
 
   /**
@@ -105,17 +121,35 @@ class reservation_aware_resource_adaptor_impl {
   struct allocation_tracker_iface {
     virtual ~allocation_tracker_iface() = default;
 
-    virtual void reset_tracker_state(::cuda::stream_ref stream) = 0;
+    virtual std::shared_ptr<stream_ordered_tracker_state> reset_tracker_state(
+      ::cuda::stream_ref stream) = 0;
 
     virtual void assign_reservation_to_tracker(::cuda::stream_ref stream,
                                                std::unique_ptr<device_reserved_arena> reservation,
                                                std::unique_ptr<reservation_limit_policy> policy,
                                                std::unique_ptr<oom_handling_policy> oom_policy) = 0;
 
-    virtual stream_ordered_tracker_state* get_tracker_state(::cuda::stream_ref stream) = 0;
-
-    virtual const stream_ordered_tracker_state* get_tracker_state(
+    virtual std::shared_ptr<stream_ordered_tracker_state> get_tracker_state(
       ::cuda::stream_ref stream) const = 0;
+  };
+
+  /** @brief A host-thread-bound stack entry overriding admission for this adaptor. */
+  class allocation_context {
+   public:
+    allocation_context(reservation_aware_resource_adaptor_impl& owner, ::cuda::stream_ref stream);
+    allocation_context(allocation_context&& other) noexcept;
+    allocation_context& operator=(allocation_context&&)      = delete;
+    allocation_context(allocation_context const&)            = delete;
+    allocation_context& operator=(allocation_context const&) = delete;
+    ~allocation_context() noexcept;
+
+   private:
+    friend class reservation_aware_resource_adaptor_impl;
+    reservation_aware_resource_adaptor_impl* _owner;
+    std::shared_ptr<stream_ordered_tracker_state> _origin;
+    allocation_context* _previous;
+    std::thread::id _thread;
+    static thread_local allocation_context* _current;
   };
 
   enum class AllocationTrackingScope {
@@ -142,7 +176,7 @@ class reservation_aware_resource_adaptor_impl {
     AllocationTrackingScope tracking_scope = AllocationTrackingScope::PER_STREAM,
     cudaMemPool_t pool_handle              = nullptr);
 
-  ~reservation_aware_resource_adaptor_impl() = default;
+  ~reservation_aware_resource_adaptor_impl();
 
   // Non-copyable and non-movable — shared_resource handles sharing
   reservation_aware_resource_adaptor_impl(const reservation_aware_resource_adaptor_impl&) = delete;
@@ -225,16 +259,29 @@ class reservation_aware_resource_adaptor_impl {
  private:
   bool grow_reservation_by(device_reserved_arena& arena, std::size_t bytes);
   void shrink_reservation_to_fit(device_reserved_arena& arena);
-  void* do_allocate_managed(std::size_t bytes, ::cuda::stream_ref stream);
-  void* do_allocate_managed(std::size_t bytes,
-                            stream_ordered_tracker_state* state,
-                            ::cuda::stream_ref stream);
-  void* do_allocate_unmanaged(std::size_t bytes,
-                              std::size_t tracking_bytes,
-                              ::cuda::stream_ref stream);
+  struct allocation_record {
+    std::size_t bytes;
+    std::size_t alignment;
+    std::size_t padded_bytes;
+    std::weak_ptr<stream_ordered_tracker_state> origin;
+  };
+
+  std::shared_ptr<stream_ordered_tracker_state> allocation_origin(::cuda::stream_ref stream) const;
+  void admit(std::shared_ptr<stream_ordered_tracker_state> const& origin,
+             std::size_t padded_bytes,
+             ::cuda::stream_ref stream);
+  void release_charge(std::shared_ptr<stream_ordered_tracker_state> const& origin,
+                      std::size_t padded_bytes) noexcept;
+  void* allocate_attempt(std::shared_ptr<stream_ordered_tracker_state> const& origin,
+                         std::size_t bytes,
+                         std::size_t alignment,
+                         ::cuda::stream_ref stream);
   bool do_reserve(std::size_t size_bytes, std::size_t limit_bytes);
   std::size_t do_reserve_upto(std::size_t size_bytes, std::size_t limit_bytes);
   void do_release_reservation(device_reserved_arena* reservation) noexcept;
+
+  std::mutex _ledger_mutex;
+  std::unordered_map<void*, allocation_record> _allocations;
 
   memory_space_id _space_id;
   rmm::device_async_resource_ref _upstream;
