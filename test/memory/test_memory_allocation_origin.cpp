@@ -89,6 +89,119 @@ TEST_CASE("Allocation context admits against origin and preserves free ownership
   CHECK(f.upstream.shared->outstanding == 0);
 }
 
+TEST_CASE("Capacity refusal records padded origin demand without charging live bytes",
+          "[allocation_origin][cpu][demand_peak]")
+{
+  auto mode = GENERATE(scope::PER_THREAD, scope::PER_STREAM);
+  fixture f{mode, 4096};
+  void* pressure;
+  {
+    auto unreserved = f.resource.allocation_context_for(f.other);
+    pressure        = f.resource.allocate(f.other, 2304, 256);
+  }
+  REQUIRE(f.attach(f.origin, 1024));
+  auto context  = f.resource.allocation_context_for(f.origin);
+  auto* pointer = f.resource.allocate(f.lane, 513, 256);
+  REQUIRE(f.resource.get_allocated_bytes(f.origin) == 768);
+  REQUIRE(f.resource.get_peak_allocated_bytes(f.origin) == 768);
+  REQUIRE(f.resource.get_total_allocated_bytes() == 3328);
+  auto const global_peak            = f.resource.get_peak_total_allocated_bytes();
+  std::size_t upstream_attempts     = 0;
+  f.upstream.shared->after_allocate = [&] { ++upstream_attempts; };
+
+  CHECK_THROWS_AS(f.resource.allocate(f.lane, 1025, 256), cucascade_out_of_memory);
+  CHECK(upstream_attempts == 0);
+  f.upstream.shared->after_allocate = {};
+  CHECK(f.resource.get_peak_allocated_bytes(f.origin) == 2048);
+  CHECK(f.resource.get_allocated_bytes(f.origin) == 768);
+  CHECK(f.resource.get_total_allocated_bytes() == 3328);
+  CHECK(f.resource.get_total_reserved_bytes() == 1024);
+  CHECK(f.resource.get_peak_total_allocated_bytes() == global_peak);
+  CHECK(f.upstream.shared->outstanding == 2);
+  if (mode == scope::PER_STREAM) {
+    CHECK(f.resource.get_peak_allocated_bytes(f.lane) == 0);
+    CHECK(f.resource.get_peak_allocated_bytes(f.other) == 0);
+  }
+
+  f.resource.deallocate(f.other, pointer, 513, 256);
+  CHECK(f.resource.get_allocated_bytes(f.origin) == 0);
+  CHECK(f.resource.get_peak_allocated_bytes(f.origin) == 2048);
+  CHECK(f.resource.get_total_allocated_bytes() == 3328);
+  CHECK(f.upstream.shared->freed_bytes == 513);
+  f.resource.reset_peak_allocated_bytes(f.origin);
+  CHECK(f.resource.get_peak_allocated_bytes(f.origin) == 0);
+  f.resource.reset_stream_reservation(f.origin);
+  CHECK(f.resource.get_peak_allocated_bytes(f.origin) == 0);
+  REQUIRE(f.attach(f.origin, 1024));
+  CHECK(f.resource.get_peak_allocated_bytes(f.origin) == 0);
+  f.resource.reset_stream_reservation(f.origin);
+  f.resource.deallocate(f.lane, pressure, 2304, 256);
+  CHECK(f.resource.get_total_allocated_bytes() == 0);
+  CHECK(f.resource.get_total_reserved_bytes() == 0);
+  CHECK(f.upstream.shared->outstanding == 0);
+}
+
+TEST_CASE("Rejected policies and unrepresentable demand leave origin peaks unchanged",
+          "[allocation_origin][cpu][demand_peak]")
+{
+  auto mode = GENERATE(scope::PER_THREAD, scope::PER_STREAM);
+  fixture f{mode, 4096};
+  REQUIRE(f.attach(f.origin, 1024, std::make_unique<fail_reservation_limit_policy>()));
+  auto context  = f.resource.allocation_context_for(f.origin);
+  auto* pointer = f.resource.allocate(f.lane, 513, 256);
+  CHECK_THROWS_AS(f.resource.allocate(f.lane, 769, 256), rmm::out_of_memory);
+  CHECK_THROWS_AS(f.resource.allocate(f.lane, std::numeric_limits<std::size_t>::max(), 256),
+                  rmm::out_of_memory);
+  CHECK_THROWS_AS(
+    f.resource.allocate(
+      f.lane, static_cast<std::size_t>(std::numeric_limits<std::int64_t>::max()), 256),
+    rmm::out_of_memory);
+  CHECK_THROWS_AS(
+    f.resource.allocate(
+      f.lane, static_cast<std::size_t>(std::numeric_limits<std::int64_t>::max()) - 255, 256),
+    rmm::out_of_memory);
+  CHECK(f.resource.get_peak_allocated_bytes(f.origin) == 768);
+  CHECK(f.resource.get_allocated_bytes(f.origin) == 768);
+  CHECK(f.resource.get_total_allocated_bytes() == 1024);
+  CHECK(f.resource.get_total_reserved_bytes() == 1024);
+  CHECK(f.resource.get_peak_total_allocated_bytes() == 1024);
+  CHECK(f.upstream.shared->outstanding == 1);
+  f.resource.reset_stream_reservation(f.origin);
+  REQUIRE(f.attach(f.origin, 1024));
+  CHECK_THROWS_AS(f.resource.allocate(f.lane, 256, 256), rmm::logic_error);
+  CHECK(f.resource.get_peak_allocated_bytes(f.origin) == 0);
+  CHECK(f.resource.get_allocated_bytes(f.origin) == 0);
+  CHECK(f.resource.get_total_allocated_bytes() == 1792);
+  f.resource.deallocate(f.other, pointer, 513, 256);
+  f.resource.reset_stream_reservation(f.origin);
+  CHECK(f.resource.get_total_allocated_bytes() == 0);
+  CHECK(f.upstream.shared->outstanding == 0);
+}
+
+TEST_CASE("A smaller successful retry retains the larger capacity-refused demand",
+          "[allocation_origin][cpu][demand_peak]")
+{
+  auto mode = GENERATE(scope::PER_THREAD, scope::PER_STREAM);
+  fixture f{mode, 4096};
+  REQUIRE(f.attach(f.origin, 1024, nullptr, std::make_unique<changed_retry>(f.other, 513)));
+  auto context  = f.resource.allocation_context_for(f.origin);
+  auto* pointer = f.resource.allocate(f.lane, 4097, 256);
+  CHECK(f.resource.get_peak_allocated_bytes(f.origin) == 4352);
+  CHECK(f.resource.get_allocated_bytes(f.origin) == 768);
+  CHECK(f.resource.get_total_allocated_bytes() == 1024);
+  CHECK(f.resource.get_total_reserved_bytes() == 1024);
+  CHECK(f.resource.get_peak_total_allocated_bytes() == 1024);
+  CHECK(f.upstream.shared->outstanding == 1);
+  f.resource.deallocate(f.lane, pointer, 4097, 256);
+  CHECK(f.resource.get_allocated_bytes(f.origin) == 0);
+  CHECK(f.resource.get_peak_allocated_bytes(f.origin) == 4352);
+  CHECK(f.upstream.shared->freed_bytes == 513);
+  f.resource.reset_stream_reservation(f.origin);
+  CHECK(f.resource.get_peak_allocated_bytes(f.origin) == 0);
+  CHECK(f.resource.get_total_allocated_bytes() == 0);
+  CHECK(f.upstream.shared->outstanding == 0);
+}
+
 TEST_CASE("Unreserved allocations cannot debit a reservation attached later",
           "[allocation_origin][cpu]")
 {
@@ -215,9 +328,11 @@ TEST_CASE("Failed attempts roll back and retry retains original ownership",
   auto context                = f.resource.allocation_context_for(f.origin);
   f.upstream.shared->failures = 1;
   CHECK_THROWS_AS(f.resource.allocate(f.lane, 512, 256), cucascade_out_of_memory);
+  CHECK(f.resource.get_peak_allocated_bytes(f.origin) == 512);
   CHECK(f.resource.get_allocated_bytes(f.origin) == 0);
   CHECK(f.resource.get_total_allocated_bytes() == 1024);
   CHECK_THROWS_AS(f.resource.allocate(f.lane, 16384, 256), cucascade_out_of_memory);
+  CHECK(f.resource.get_peak_allocated_bytes(f.origin) == 16384);
   CHECK(f.resource.get_allocated_bytes(f.origin) == 0);
   CHECK(f.resource.get_total_allocated_bytes() == 1024);
   CHECK_THROWS_AS(f.resource.allocate(f.lane, std::numeric_limits<std::size_t>::max(), 256),

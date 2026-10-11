@@ -558,6 +558,7 @@ void impl_type::admit(std::shared_ptr<stream_ordered_tracker_state> const& origi
       }
       policy_locked_state = previous;
     }
+    arena->peak_allocated_bytes.update_peak(static_cast<int64_t>(live + padded_bytes));
     auto reserved = static_cast<std::size_t>(arena->size());
     global_delta  = std::max(reserved, live + padded_bytes) - std::max(reserved, live);
   }
@@ -569,10 +570,7 @@ void impl_type::admit(std::shared_ptr<stream_ordered_tracker_state> const& origi
                                   committed,
                                   _pool_handle);
   }
-  if (arena) {
-    auto next = arena->allocated_bytes.add(static_cast<int64_t>(padded_bytes));
-    arena->peak_allocated_bytes.update_peak(next);
-  }
+  if (arena) { arena->allocated_bytes.add(static_cast<int64_t>(padded_bytes)); }
   _peak_total_allocated_bytes.update_peak(committed);
 }
 

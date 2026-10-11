@@ -158,9 +158,14 @@ class reservation_aware_resource_adaptor
   std::size_t get_allocated_bytes(::cuda::stream_ref stream) const;
 
   /**
-   * @brief Gets the peak allocated bytes observed for a specific stream.
+   * @brief Gets the peak aligned allocation demand for a specific stream's reservation.
+   *
+   * Demand is live bytes plus the aligned request after reservation-policy acceptance, including
+   * requests subsequently rejected by capacity, upstream allocation, or ledger publication. Failed
+   * requests do not retain live charges. Unrepresentable requests and closed allocation contexts do
+   * not update this estimation signal.
    * @param stream The CUDA stream to query
-   * @return The peak allocated bytes for the stream
+   * @return The peak allocation demand for the reservation
    */
   std::size_t get_peak_allocated_bytes(::cuda::stream_ref stream) const;
 
