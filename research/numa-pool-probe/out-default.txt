@@ -1,0 +1,58 @@
+runtime=13020 driver=13020 devices=2
+dev0 sm_12: HostNumaMemoryPoolsSupported(142)=1 HostMemoryPoolsSupported(144)=1 hostNumaId=0
+dev1 sm_12: HostNumaMemoryPoolsSupported(142)=1 HostMemoryPoolsSupported(144)=1 hostNumaId=0
+
+== invalid locations ==
+  cudaMemPoolCreate(&p, &props)                                -> cudaErrorInvalidValue
+  cudaMemPoolCreate(&p, &props)                                -> cudaErrorInvalidValue
+  cudaMemPoolCreate(&p, &props)                                -> cudaSuccess
+  (Host pool created)
+
+== pool: HostNuma 0, maxSize=256MiB, threshold=UINT64_MAX, access all devs ==
+  GetAccess dev0 = 3
+  GetAccess dev1 = 3
+  GetAccess host -> cudaSuccess flags=3
+  alloc on dev0 stream: 0x402000000 (align 2MiB? 1)
+  [after 64MiB alloc] reserved=64 MiB used=64 MiB
+  ptrattr type=1 device=0 devicePointer=0x402000000 hostPointer=0x402000000 (same VA: 1)
+  move_pages rc=0 pages=16384 node0=16384 node1=0 err/other=0 (first status=0)
+  dev0: GPU saw 0 bad host-written words; host saw 0 bad GPU-written words
+  dev1: GPU saw 0 bad host-written words; host saw 0 bad GPU-written words
+  move_pages rc=0 pages=16384 node0=16384 node1=0 err/other=0 (first status=0)
+
+== alloc on dev1 stream, used from dev0 ==
+  dev0: GPU saw 0 bad host-written words; host saw 0 bad GPU-written words
+
+== H2D bandwidth, 64MiB ==
+  pool=56.5 GB/s  cudaHostAlloc=56.5 GB/s  pageable=12.2 GB/s
+
+== same-stream reuse ==
+  reused same ptr without sync: 1
+  1-byte alloc 0x406000000
+  [after 1B alloc] reserved=96 MiB used=64 MiB
+
+== hit maxSize ==
+  failed after 256 MiB live: cudaErrorMemoryAllocation; peek=cudaSuccess get=cudaErrorMemoryAllocation peek-after=cudaErrorMemoryAllocation
+  single 512MiB alloc (> maxSize): cudaErrorMemoryAllocation
+  [at limit] reserved=256 MiB used=256 MiB
+  [freed, before trim] reserved=256 MiB used=64 MiB
+  context still usable after OOM: yes
+
+== trim ==
+  [trim(0) with 64MiB live] reserved=64 MiB used=64 MiB
+  [freed all, threshold=MAX] reserved=64 MiB used=0 MiB
+  [trim(0), none live] reserved=0 MiB used=0 MiB
+
+== destroy with live allocation ==
+  cudaMemPoolDestroy(pool)                                     -> cudaSuccess
+  host write to live alloc after destroy: ok
+  cudaFreeAsync(q, st[0])                                      -> cudaSuccess
+  cudaStreamSynchronize(st[0])                                 -> cudaSuccess
+
+== kernel access WITHOUT cudaMemPoolSetAccess (child process) ==
+  ptrattr -> cudaSuccess type=1 devicePointer=(nil)
+  memcpy H2D -> cudaSuccess
+  kernel sync -> cudaErrorIllegalAddress, bad=-1
+  child rc=0
+
+DONE
