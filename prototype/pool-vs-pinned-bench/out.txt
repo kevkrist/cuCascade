@@ -1,0 +1,82 @@
+CUDA runtime 13020, driver 13040, 2 visible device(s), 48 hardware threads
+  dev0: NVIDIA RTX PRO 6000 Blackwell Workstation Edition (sm_120)
+  dev1: NVIDIA RTX PRO 6000 Blackwell Workstation Edition (sm_120)
+
+== 1. Repeated large requests, 1 thread: allocate(stream) + sync + free(stream)
+   µs per cycle. 'pool cold' = first allocation of that size from a new, empty pool.
+   size      | current mean / p50 / p99       | pool warm mean / p50 / p99     | pool cold  | current/pool
+   16 KiB    |    1307.6 /   1324.2 /   1468.4 |      0.88 /     0.84 /     0.97 |     3841.2 |     1485x
+   64 KiB    |    1256.5 /   1223.9 /   1473.8 |      0.88 /     0.85 /     1.01 |     2895.8 |     1424x
+   1 MiB     |    1211.3 /   1200.6 /   1358.5 |      0.86 /     0.84 /     0.96 |     3924.2 |     1409x
+   16 MiB    |    8560.8 /   8482.8 /   9659.4 |      0.85 /     0.84 /     0.95 |     3176.6 |    10056x
+   64 MiB    |   36006.7 /  35450.9 /  41678.5 |      0.89 /     0.85 /     0.99 |     6565.5 |    40406x
+   256 MiB   |  143370.4 / 144002.9 / 148369.5 |      0.86 /     0.85 /     0.96 |    22981.6 |   166026x
+
+   Varying sizes (log-uniform 64 KiB..32 MiB), 4 buffers live, 2000 steps, µs per step
+   current mean 2839.8 p99 13598.3 | pool mean 6.45 p99 1.82 (includes growth) | 440x
+   peak live 84.9 MiB; pool reserved after run 128.0 MiB
+
+== 2. Small allocations (current = slab path, <= 8 KiB), 1 thread, µs per allocation
+   A: alloc + sync + free.  B: alloc + free, no sync.  C: 64 live, one sync, free all.
+   size    | A current / pool      | B current / pool      | C current / pool     
+   64 B    |      0.40 /      0.90 |      0.22 /      0.63 |      0.20 /      0.69
+   512 B   |      0.40 /      0.86 |      0.22 /      0.59 |      0.19 /      0.53
+   4 KiB   |      0.40 /      0.84 |      0.22 /      0.58 |      0.20 /      0.52
+   8 KiB   |      0.39 /      0.86 |      0.22 /      0.58 |      0.20 /      0.53
+
+== 3. Copy bandwidth, 256 MiB buffer, cudaMemcpyAsync + sync, median of 12, GB/s
+   host buffer                                  | dev0 H2D  dev0 D2H | dev1 H2D  dev1 D2H
+   pool (HostNuma cudaMemPool)                  |     56.9      57.3 |     56.9      57.3
+   cudaHostAlloc Portable|Mapped (today >8 KiB) |     56.9      57.3 |     56.9      57.3
+   malloc + cudaHostRegister (today's blocks)   |     56.9      57.2 |     56.9      57.2
+   pageable                                     |     19.9      18.1 |     19.9      18.3
+
+== 4. Multi-threaded allocate/free, one stream per thread, 1.5 s per cell
+   µs per cycle per thread (aggregate cycles/s in brackets)
+
+   4 KiB, alloc+sync+free, all threads on dev0 (current = mutex slab path)
+   threads | current                      | pool                         | current/pool
+   1       |       0.35 [     2839694/s] |       0.83 [     1206405/s] |     0.42x
+   2       |       1.38 [     1449414/s] |       3.32 [      602917/s] |     0.42x
+   4       |       3.26 [     1227409/s] |       8.44 [      473728/s] |     0.39x
+   8       |      13.28 [      602435/s] |      20.36 [      392956/s] |     0.65x
+   16      |      32.23 [      496373/s] |      61.63 [      259600/s] |     0.52x
+   32      |      74.33 [      430489/s] |     140.09 [      228428/s] |     0.53x
+
+   4 KiB, alloc+free no sync, all threads on dev0
+   threads | current                      | pool                         | current/pool
+   1       |       0.21 [     4800696/s] |       0.54 [     1863126/s] |     0.39x
+   2       |       1.12 [     1787685/s] |       2.42 [      825763/s] |     0.46x
+   4       |       2.77 [     1444794/s] |       6.86 [      583498/s] |     0.40x
+   8       |      12.51 [      639254/s] |      16.01 [      499713/s] |     0.78x
+   16      |      31.26 [      511910/s] |      45.06 [      355104/s] |     0.69x
+   32      |      71.22 [      449286/s] |      96.03 [      333237/s] |     0.74x
+
+   4 KiB, alloc+sync+free, threads spread over all GPUs
+   threads | current                      | pool                         | current/pool
+   1       |       0.36 [     2809756/s] |       0.94 [     1069470/s] |     0.38x
+   2       |       1.49 [     1346775/s] |       3.71 [      538525/s] |     0.40x
+   4       |       4.94 [      810283/s] |      11.23 [      356315/s] |     0.44x
+   8       |      16.38 [      488351/s] |      25.74 [      310800/s] |     0.64x
+   16      |      32.50 [      492307/s] |      61.85 [      258701/s] |     0.53x
+   32      |      74.50 [      429515/s] |     128.52 [      248989/s] |     0.58x
+
+   1 MiB, alloc+sync+free, dev0 (current = cudaHostAlloc)
+   threads | current                      | pool                         | current/pool
+   1       |    1752.41 [         571/s] |       0.99 [     1008291/s] |  1766.94x
+   2       |     454.02 [        4405/s] |       3.84 [      520723/s] |   118.21x
+   4       |     914.40 [        4374/s] |      10.02 [      399242/s] |    91.27x
+   8       |    1752.42 [        4565/s] |      22.02 [      363345/s] |    79.59x
+   16      |    3454.89 [        4631/s] |      63.71 [      251149/s] |    54.23x
+   32      |    7109.35 [        4501/s] |     137.82 [      232179/s] |    51.58x
+
+   16 MiB, alloc+sync+free, dev0 (current = cudaHostAlloc)
+   threads | current                      | pool                         | current/pool
+   1       |   10000.46 [         100/s] |       0.94 [     1063471/s] | 10635.20x
+   2       |   20135.22 [          99/s] |       3.76 [      532202/s] |  5358.00x
+   4       |   39737.05 [         101/s] |      11.47 [      348824/s] |  3465.31x
+   8       |   81636.13 [          98/s] |      20.91 [      382567/s] |  3903.92x
+   16      |  158948.45 [         101/s] |      65.07 [      245895/s] |  2442.79x
+   32      |  322161.50 [          99/s] |     140.84 [      227203/s] |  2287.38x
+
+pool at exit: reserved 512.0 MiB, high watermark 512.0 MiB
