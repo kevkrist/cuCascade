@@ -1,0 +1,18 @@
+  hostnuma, default reuse policies         T= 1 mode=0: alloc     400  sync      25  free     393 ns/block/thread
+  hostnuma, reuse policies OFF             T= 1 mode=0: alloc     402  sync      25  free     395 ns/block/thread
+  DEVICE pool (control)                    T= 1 mode=0: alloc     263  sync      24  free     319 ns/block/thread
+  hostnuma, default reuse policies         T= 1 mode=1: alloc     401  sync       2  free     396 ns/block/thread
+  hostnuma, reuse policies OFF             T= 1 mode=1: alloc     400  sync       2  free     391 ns/block/thread
+  DEVICE pool (control)                    T= 1 mode=1: alloc     267  sync       1  free     325 ns/block/thread
+  hostnuma, default reuse policies         T= 1 mode=2: alloc     635  sync      19  free     424 ns/block/thread
+  hostnuma, reuse policies OFF             T= 1 mode=2: alloc     475  sync      19  free     424 ns/block/thread
+  DEVICE pool (control)                    T= 1 mode=2: alloc     499  sync      19  free     352 ns/block/thread
+  hostnuma, default reuse policies         T= 8 mode=0: alloc   36578  sync      77  free   26694 ns/block/thread
+  hostnuma, reuse policies OFF             T= 8 mode=0: alloc   31277  sync      72  free   25395 ns/block/thread
+  DEVICE pool (control)                    T= 8 mode=0: alloc   36406  sync      79  free   18500 ns/block/thread
+  hostnuma, default reuse policies         T= 8 mode=1: alloc   35550  sync       5  free   26123 ns/block/thread
+  hostnuma, reuse policies OFF             T= 8 mode=1: alloc   34746  sync       5  free   24840 ns/block/thread
+  DEVICE pool (control)                    T= 8 mode=1: alloc   36008  sync       5  free   18904 ns/block/thread
+  hostnuma, default reuse policies         T= 8 mode=2: alloc   44100  sync      85  free   23460 ns/block/thread
+  hostnuma, reuse policies OFF             T= 8 mode=2: alloc   42306  sync      87  free   22935 ns/block/thread
+  DEVICE pool (control)                    T= 8 mode=2: alloc   40116  sync      94  free   19237 ns/block/thread

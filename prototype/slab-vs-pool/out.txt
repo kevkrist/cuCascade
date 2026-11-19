@@ -1,0 +1,62 @@
+== Scenario 1: steady-state cost per block (ns per block per thread; lower is better)
+  block 64 KiB  (host memcpy of one block: 1315 ns)
+    k blocks/call x threads ->        1x1     16x1     16x8    256x8
+                                                                    
+    per-block (1 slab stream)        1101      979    90955   109939
+    per-block (stream/thread)        1110      974    71396    79394
+    chunked slab                       30        5      435       74
+    32 threads, 16 blocks/call:  per-block (1 slab stream)=480373  per-block (stream/thread)=389500  chunked slab=1071
+  block 1024 KiB  (host memcpy of one block: 45240 ns)
+    k blocks/call x threads ->        1x1     16x1     16x8    256x8
+                                                                    
+    per-block (1 slab stream)        1154      968    95619   118760
+    per-block (stream/thread)        1154      968    75448    85207
+    chunked slab                       30        5      414       69
+    32 threads, 16 blocks/call:  per-block (1 slab stream)=469053  per-block (stream/thread)=395296  chunked slab=1059
+  block 4096 KiB  (host memcpy of one block: 312726 ns)
+    k blocks/call x threads ->        1x1     16x1     16x8    256x8
+                                                                    
+    per-block (1 slab stream)        1162      997    92924   119692
+    per-block (stream/thread)        1170     1020    76052    90094
+    chunked slab                       30        5      442       67
+    32 threads, 16 blocks/call:  per-block (1 slab stream)=466932  per-block (stream/thread)=386072  chunked slab=1190
+
+== Scenario 2: cold growth (fresh pool; first touch of new pinned memory)
+    per-block (1 slab stream)     1 threads x  512 MiB:    35.5 ms  (14.07 GiB/s)
+    chunked slab                  1 threads x  512 MiB:    35.1 ms  (14.23 GiB/s)
+    per-block (1 slab stream)     8 threads x  512 MiB:   302.1 ms  (13.24 GiB/s)
+    chunked slab                  8 threads x  512 MiB:   286.9 ms  (13.94 GiB/s)
+    per-block (1 slab stream)    32 threads x  512 MiB:  2558.6 ms  ( 6.25 GiB/s)
+    chunked slab                 32 threads x  512 MiB:  1555.7 ms  (10.28 GiB/s)
+
+== Scenario 3: memory idle after a spike (pool limit 10 GiB, spike 8 GiB of 1 MiB blocks)
+  per-block (1 slab stream), contiguous request 1 GiB:
+    after 8 GiB spike:                 pool reserved   8.03 GiB, pool used   8.03 GiB
+    after all blocks returned:         pool reserved   8.03 GiB, pool used   0.00 GiB
+    cudf 1 GiB contiguous: OK
+    after cudf request:                pool reserved   8.03 GiB, pool used   0.00 GiB
+  chunked slab (no release), contiguous request 1 GiB:
+    after 8 GiB spike:                 pool reserved   8.03 GiB, pool used   8.00 GiB
+    after all blocks returned:         pool reserved   8.03 GiB, pool used   8.00 GiB
+    cudf 1 GiB contiguous: OK
+    after cudf request:                pool reserved   9.03 GiB, pool used   8.00 GiB
+  chunked slab + release_free_chunks(), contiguous request 1 GiB:
+    after 8 GiB spike:                 pool reserved   8.03 GiB, pool used   8.00 GiB
+    after all blocks returned:         pool reserved   8.03 GiB, pool used   0.00 GiB
+    cudf 1 GiB contiguous: OK
+    after cudf request:                pool reserved   8.03 GiB, pool used   0.00 GiB
+  per-block (1 slab stream), contiguous request 6 GiB:
+    after 8 GiB spike:                 pool reserved   8.03 GiB, pool used   8.03 GiB
+    after all blocks returned:         pool reserved   8.03 GiB, pool used   0.00 GiB
+    cudf 6 GiB contiguous: OK
+    after cudf request:                pool reserved   8.03 GiB, pool used   0.00 GiB
+  chunked slab (no release), contiguous request 6 GiB:
+    after 8 GiB spike:                 pool reserved   8.03 GiB, pool used   8.00 GiB
+    after all blocks returned:         pool reserved   8.03 GiB, pool used   8.00 GiB
+    cudf 6 GiB contiguous: OUT OF MEMORY
+    after cudf request:                pool reserved  10.00 GiB, pool used   8.00 GiB
+  chunked slab + release_free_chunks(), contiguous request 6 GiB:
+    after 8 GiB spike:                 pool reserved   8.03 GiB, pool used   8.00 GiB
+    after all blocks returned:         pool reserved   8.03 GiB, pool used   0.00 GiB
+    cudf 6 GiB contiguous: OK
+    after cudf request:                pool reserved   8.03 GiB, pool used   0.00 GiB
