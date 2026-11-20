@@ -1,0 +1,192 @@
+env=cuda-12-stable
+-- packages
+cmake 4.5.0 hff7ac6b_0
+cuda-cccl_linux-64 12.9.27 ha770c72_1
+cuda-cudart-dev 12.9.79 h5888daf_0
+cuda-nvcc 12.9.86 hcdd1206_6
+cuda-version 12.9 h4f385c5_3
+gxx_linux-64 14.4.0 h2f2b17e_4
+libcudf 26.10.02 cuda12_261020221108_2cd6c6c0
+librmm 26.10.00 cuda12_261007164415_5ab04250
+-- configure + build (repo -Werror flags on probe.cpp)
+build=ok
+-- which CCCL copy probe.cpp includes
+include/rapids/cuda/__memory_pool/shared_pinned_memory_pool.h
+include/rapids/cuda/__memory_resource/shared_resource.h
+include/rapids/cuda/std/__cccl/version.h
+-- CCCL copies present in the env
+./include/rapids/cuda/std/__cccl/version.h 3005000 shared_pinned_pool_header=yes
+./targets/x86_64-linux/include/cuda/std/__cccl/version.h 2008002 shared_pinned_pool_header=no
+-- run
+CCCL_VERSION=3005000
+CUDART_VERSION=12090
+rmm::cuda_stream_view header: present
+RMM_VERSION=26.10.0
+gate CTK>=13.0 (default-location ctor, managed pools): off
+gate CTK>=13.3 (max_pool_size attribute readback): off
+
+== runtime versions and devices
+  cudaRuntimeGetVersion=12090 cudaDriverGetVersion=13040
+  dev0: NVIDIA RTX PRO 6000 Blackwell Workstation Edition sm_120 HostNumaMemoryPoolsSupported=1 HostNumaId=0
+  dev1: NVIDIA RTX PRO 6000 Blackwell Workstation Edition sm_120 HostNumaMemoryPoolsSupported=1 HostNumaId=0
+  dev2: NVIDIA RTX A400 sm_86 HostNumaMemoryPoolsSupported=1 HostNumaId=0
+  result: ok
+
+== node 0 with a 64 MiB limit
+  fresh: reserved_MiB=0 used_MiB=0
+  after 16 MiB alloc: reserved_MiB=32 used_MiB=16 aligned256=1 aligned4096=1
+  after free, before sync: reserved_MiB=32 used_MiB=0
+  after free and sync: reserved_MiB=32 used_MiB=0
+  is_accessible_from: dev0=1 dev1=1 dev2=1
+  result: ok
+
+== nonexistent NUMA node (4096)
+  CCCL ctor: cuda::cuda_error(cudaErrorInvalidValue)
+  raw cudaMemPoolCreate: cudaErrorInvalidValue
+  CCCL ctor node 1 (machine has one node): cuda::cuda_error(cudaErrorInvalidValue)
+  CCCL ctor node -1: cuda::cuda_error(cudaErrorInvalidValue)
+  result: ok
+
+== over-limit allocation and recovery (64 MiB limit)
+  48 MiB: ok
+  +32 MiB (over): cuda::cuda_error(cudaErrorMemoryAllocation)
+  cudaGetLastError after failure: cudaSuccess
+  +8 MiB (still fits): ok
+  32 MiB after free, no sync, same stream: ok
+  64 MiB after free and sync: ok
+  128 MiB single request (above limit): cuda::cuda_error(cudaErrorMemoryAllocation)
+  allocate_sync 128 MiB: cuda::cuda_error(cudaErrorMemoryAllocation)
+  end: reserved_MiB=64 used_MiB=0
+  result: ok
+
+== zero-byte allocate
+  allocate(stream, 0): ok ptr_is_null=0
+  allocate_sync(0): ok ptr_is_null=0
+  cudaGetLastError: cudaSuccess
+  deallocate(nullptr, 0) both forms returned; cudaGetLastError: cudaSuccess
+  reserved_MiB=0 used_MiB=0
+  result: ok
+
+== alignment
+  pointer alignment by size: 1:4096 100:256 4096:256 70000:256 1048576:256
+  used after 1+100+4096+70000+1MiB bytes: 1122773
+  allocate(align=1): ok
+  allocate(align=8): ok
+  allocate(align=64): ok
+  allocate(align=256): ok
+  allocate(align=512): std::invalid_argument(Invalid alignment passed to __memory_pool_base::allocate.)
+  allocate(align=4096): std::invalid_argument(Invalid alignment passed to __memory_pool_base::allocate.)
+  allocate(align=3): std::invalid_argument(Invalid alignment passed to __memory_pool_base::allocate.)
+  result: ok
+
+== alignment 0
+  CHILD KILLED BY SIGNAL 4
+
+== trim_to
+  two live (32+8): reserved_MiB=64 used_MiB=40
+  32 freed and synced: reserved_MiB=64 used_MiB=8
+  trim_to(16 MiB): ok -> reserved_MiB=64 used_MiB=8
+  trim_to(0): ok -> reserved_MiB=32 used_MiB=8
+  all freed and synced: reserved_MiB=32 used_MiB=0
+  trim_to(0): ok -> reserved_MiB=32 used_MiB=0
+  reserved_mem_high_MiB=64 used_mem_high_MiB=40
+  result: ok
+
+== config rules (CCCL-side checks)
+    -> reserved_MiB=32 used_MiB=0
+  initial 16 MiB, max 64 MiB: ok
+  initial 128 MiB > max 64 MiB: std::invalid_argument(Initial pool size must be less than the max pool size)
+  initial 16 MiB > release_threshold 8 MiB: std::invalid_argument(Initial pool size must be less than the release threshold)
+    -> reserved_MiB=0 used_MiB=0
+  release_threshold 0: ok
+    -> reserved_MiB=0 used_MiB=0
+  max 0 (unlimited): ok
+  result: ok
+
+== handle semantics and rmm ref
+  copy == original: 1  other == original: 0
+  rmm::device_buffer(8 MiB) through the ref: reserved_MiB=32 used_MiB=8 other pool used_MiB=0
+  buffer destroyed and synced: reserved_MiB=32 used_MiB=0
+  result: ok
+
+== route A grant-all then disable_access_from, listed={1}: construct and access flags
+  is_accessible_from: dev0=0 dev1=1 dev2=0
+  result: ok
+
+== route A grant-all then disable_access_from, listed={1}: kernel on listed device
+  kernel dev=1 (listed): stream_create=cudaSuccess allocate=ok sync_after_alloc=cudaSuccess launch=cudaSuccess stream_sync=cudaSuccess device_sync=cudaSuccess device_sync_again=cudaSuccess copy_back=cudaSuccess malloc_after=cudaSuccess mismatches=0 host_sees_flip=1
+  result: ok
+
+== route A grant-all then disable_access_from, listed={1}: kernel on unlisted device 0, then listed device in the same process
+  kernel dev=0 (unlisted): stream_create=cudaSuccess allocate=ok sync_after_alloc=cudaSuccess launch=cudaSuccess stream_sync=cudaErrorIllegalAddress device_sync=cudaErrorIllegalAddress device_sync_again=cudaErrorIllegalAddress copy_back=cudaErrorIllegalAddress malloc_after=cudaErrorIllegalAddress mismatches=-1 host_sees_flip=0
+  kernel dev=1 (listed, after the failure): stream_create=cudaErrorDevicesUnavailable allocate=cuda::cuda_error(cudaErrorContextIsDestroyed)
+  kernel dev=0 (unlisted, second attempt): stream_create=cudaErrorIllegalAddress allocate=cuda::cuda_error(cudaErrorInvalidResourceHandle)
+  result: ok
+
+== route A grant-all then disable_access_from, listed={1}: kernel on unlisted device 2
+  kernel dev=2 (unlisted): stream_create=cudaSuccess allocate=ok sync_after_alloc=cudaSuccess launch=cudaSuccess stream_sync=cudaErrorIllegalAddress device_sync=cudaErrorIllegalAddress device_sync_again=cudaErrorIllegalAddress copy_back=cudaErrorIllegalAddress malloc_after=cudaErrorIllegalAddress mismatches=-1 host_sees_flip=0
+  result: ok
+
+== route A grant-all then disable_access_from, listed={1}: memcpy (no kernel) on unlisted device 0
+  memcpy dev=0 (unlisted): h2d=cudaSuccess sync=cudaSuccess d2h=cudaSuccess sync=cudaSuccess round_trip_ok=1
+  memcpy dev=1 (listed): h2d=cudaSuccess sync=cudaSuccess d2h=cudaSuccess sync=cudaSuccess round_trip_ok=1
+  result: ok
+
+== route A grant-all then disable_access_from, listed={1}: allocate_sync / deallocate_sync with device 0 unlisted
+  allocate_sync(4 MiB): ok
+  host write ok; reserved_MiB=32 used_MiB=4
+  deallocate_sync returned; cudaGetLastError: cudaSuccess; reserved_MiB=32 used_MiB=0
+  result: ok
+
+== route A grant-all then disable_access_from, listed={1}: grant an unlisted device later, then kernel on it
+  enable_access_from(dev0): ok
+  is_accessible_from: dev0=1 dev1=1 dev2=0
+  kernel dev=0 (granted late): stream_create=cudaSuccess allocate=ok sync_after_alloc=cudaSuccess launch=cudaSuccess stream_sync=cudaSuccess device_sync=cudaSuccess device_sync_again=cudaSuccess copy_back=cudaSuccess malloc_after=cudaSuccess mismatches=0 host_sees_flip=1
+  result: ok
+
+== route A grant-all then disable_access_from, listed={1}: allocate while granted, revoke, then kernel on the revoked device
+  disable_access_from(dev1) with a live allocation: ok
+  is_accessible_from: dev0=0 dev1=0 dev2=0
+  kernel dev=1 (revoked after use, new allocation): stream_create=cudaSuccess allocate=ok sync_after_alloc=cudaSuccess launch=cudaSuccess stream_sync=cudaErrorIllegalAddress device_sync=cudaErrorIllegalAddress device_sync_again=cudaErrorIllegalAddress copy_back=cudaErrorIllegalAddress malloc_after=cudaErrorIllegalAddress mismatches=-1 host_sees_flip=0
+  result: ok
+
+== route B raw cudaMemPoolCreate + from_native_handle, listed={1}: construct and access flags
+  is_accessible_from: dev0=0 dev1=1 dev2=0
+  result: ok
+
+== route B raw cudaMemPoolCreate + from_native_handle, listed={1}: kernel on listed device
+  kernel dev=1 (listed): stream_create=cudaSuccess allocate=ok sync_after_alloc=cudaSuccess launch=cudaSuccess stream_sync=cudaSuccess device_sync=cudaSuccess device_sync_again=cudaSuccess copy_back=cudaSuccess malloc_after=cudaSuccess mismatches=0 host_sees_flip=1
+  result: ok
+
+== route B raw cudaMemPoolCreate + from_native_handle, listed={1}: kernel on unlisted device 0, then listed device in the same process
+  kernel dev=0 (unlisted): stream_create=cudaSuccess allocate=ok sync_after_alloc=cudaSuccess launch=cudaSuccess stream_sync=cudaErrorIllegalAddress device_sync=cudaErrorIllegalAddress device_sync_again=cudaErrorIllegalAddress copy_back=cudaErrorIllegalAddress malloc_after=cudaErrorIllegalAddress mismatches=-1 host_sees_flip=0
+  kernel dev=1 (listed, after the failure): stream_create=cudaErrorDevicesUnavailable allocate=cuda::cuda_error(cudaErrorContextIsDestroyed)
+  kernel dev=0 (unlisted, second attempt): stream_create=cudaErrorIllegalAddress allocate=cuda::cuda_error(cudaErrorInvalidResourceHandle)
+  result: ok
+
+== route B raw cudaMemPoolCreate + from_native_handle, listed={1}: kernel on unlisted device 2
+  kernel dev=2 (unlisted): stream_create=cudaSuccess allocate=ok sync_after_alloc=cudaSuccess launch=cudaSuccess stream_sync=cudaErrorIllegalAddress device_sync=cudaErrorIllegalAddress device_sync_again=cudaErrorIllegalAddress copy_back=cudaErrorIllegalAddress malloc_after=cudaErrorIllegalAddress mismatches=-1 host_sees_flip=0
+  result: ok
+
+== route B raw cudaMemPoolCreate + from_native_handle, listed={1}: memcpy (no kernel) on unlisted device 0
+  memcpy dev=0 (unlisted): h2d=cudaSuccess sync=cudaSuccess d2h=cudaSuccess sync=cudaSuccess round_trip_ok=1
+  memcpy dev=1 (listed): h2d=cudaSuccess sync=cudaSuccess d2h=cudaSuccess sync=cudaSuccess round_trip_ok=1
+  result: ok
+
+== route B raw cudaMemPoolCreate + from_native_handle, listed={1}: allocate_sync / deallocate_sync with device 0 unlisted
+  allocate_sync(4 MiB): ok
+  host write ok; reserved_MiB=32 used_MiB=4
+  deallocate_sync returned; cudaGetLastError: cudaSuccess; reserved_MiB=32 used_MiB=0
+  result: ok
+
+== route B raw cudaMemPoolCreate + from_native_handle, listed={1}: grant an unlisted device later, then kernel on it
+  enable_access_from(dev0): ok
+  is_accessible_from: dev0=1 dev1=1 dev2=0
+  kernel dev=0 (granted late): stream_create=cudaSuccess allocate=ok sync_after_alloc=cudaSuccess launch=cudaSuccess stream_sync=cudaSuccess device_sync=cudaSuccess device_sync_again=cudaSuccess copy_back=cudaSuccess malloc_after=cudaSuccess mismatches=0 host_sees_flip=1
+  result: ok
+
+== route B raw cudaMemPoolCreate + from_native_handle, listed={1}: allocate while granted, revoke, then kernel on the revoked device
+  disable_access_from(dev1) with a live allocation: ok
+  is_accessible_from: dev0=0 dev1=0 dev2=0
+  kernel dev=1 (revoked after use, new allocation): stream_create=cudaSuccess allocate=ok sync_after_alloc=cudaSuccess launch=cudaSuccess stream_sync=cudaErrorIllegalAddress device_sync=cudaErrorIllegalAddress device_sync_again=cudaErrorIllegalAddress copy_back=cudaErrorIllegalAddress malloc_after=cudaErrorIllegalAddress mismatches=-1 host_sees_flip=0
+  result: ok
