@@ -1,0 +1,65 @@
+#### hog: fill CUDA dev 0 (unlisted Blackwell, idle) ; ctx-only on CUDA dev 2 (A400, desktop GPU, not filled)
+hog dev=2 mib=0: no error free=1619MiB total=3797MiB
+hog dev=0 mib=96900: out of memory free=96765MiB total=97340MiB
+0, 2202 MiB, 4094 MiB
+1, 576 MiB, 97887 MiB
+2, 18 MiB, 97887 MiB
+## A quiet
+mode=A pid=665493 listed={1} warm=0
+TIME mode=A warm=0 create_ms=60.002 narrow_ms=0.001 total_ms=60.004
+exit=0
+## B quiet
+mode=B pid=665496 listed={1} warm=0
+TIME mode=B warm=0 create_ms=46.051 narrow_ms=1.484 total_ms=47.535
+exit=0
+## A alloc
+mode=A pid=665501 listed={1} warm=0
+TIME mode=A warm=0 create_ms=33.814 narrow_ms=0.001 total_ms=33.815
+== after construction + narrowing, before any allocation
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  is_accessible_from(0)=0
+  is_accessible_from(1)=1
+  is_accessible_from(2)=0
+== after allocate_sync(1MiB) from pool (no cudaSetDevice by us)
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=1 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-app: 665501, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 552 MiB
+  copy pool mem -> listed device 1: no error
+== after cudaSetDevice(listed) + H2D copy
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=1 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=1 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-app: 665501, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 552 MiB
+  smi-app: 665501, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 554 MiB
+exit=0
+## B alloc
+mode=B pid=665583 listed={1} warm=0
+TIME mode=B warm=0 create_ms=32.519 narrow_ms=0.497 total_ms=33.016
+== after construction + narrowing, before any allocation
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  is_accessible_from(0)=0
+  is_accessible_from(1)=1
+  is_accessible_from(2)=0
+== after allocate_sync(1MiB) from pool (no cudaSetDevice by us)
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=1 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-app: 665583, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 552 MiB
+  copy pool mem -> listed device 1: no error
+== after cudaSetDevice(listed) + H2D copy
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=1 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=1 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-app: 665583, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 552 MiB
+  smi-app: 665583, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 554 MiB
+exit=0
+[1]-  Terminated              timeout 90 ./build/hog 0 96900 60
+[2]+  Terminated              timeout 90 ./build/hog 2 0 60
+0, 2151 MiB
+1, 16 MiB
+2, 16 MiB

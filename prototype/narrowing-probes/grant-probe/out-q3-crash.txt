@@ -1,0 +1,19 @@
+#### crash location: CUDA dev 0 full, route B alloc, unbuffered, gdb backtrace
+hog dev=0 mib=96700: no error free=65MiB total=97340MiB
+mode=B pid=666675 listed={1} warm=0
+TIME mode=B warm=0 create_ms=63.883 narrow_ms=5.578 total_ms=69.461
+== after construction + narrowing, before any allocation
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  is_accessible_from(0)=0
+  is_accessible_from(1)=1
+  is_accessible_from(2)=0
+exit=139
+Thread 1 "grant_probe" received signal SIGSEGV, Segmentation fault.
+#0  0x00007ffff78c481b in __cxxabiv1::__is_gxx_exception_class (c=<optimized out>) at ../../../../libstdc++-v3/libsupc++/unwind-cxx.h:346
+#1  __cxxabiv1::__cxa_begin_catch (exc_obj_in=0xffffff00) at ../../../../libstdc++-v3/libsupc++/eh_catch.cc:53
+#2  0x00007ffff78b271d in __cxa_call_terminate (ue_header_in=0xffffff00) at ../../../../libstdc++-v3/libsupc++/eh_call.cc:47
+#3  0x00005555555607e9 in cuda::__4::__cccl_allocation_stream() ()
+#4  0x0000555555559147 in main ()
+[1]+  Terminated              timeout 90 ./build/hog 0 96700 60

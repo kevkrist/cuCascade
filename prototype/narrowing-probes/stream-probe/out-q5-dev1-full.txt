@@ -1,0 +1,29 @@
+#### Q5: CUDA dev 1 (listed, stream device) nearly full, listed={1}
+hog dev=1 mib=96700: no error free=65MiB total=97340MiB
+0, NVIDIA RTX A400, 2102 MiB, 4094 MiB
+1, NVIDIA RTX PRO 6000 Blackwell Workstation Edition, 18 MiB, 97887 MiB
+2, NVIDIA RTX PRO 6000 Blackwell Workstation Edition, 97276 MiB, 97887 MiB
+## LISTED=1 timeout 60 ./build/stream_probe nophaseb
+pid=682164 listed={1} raw_stream=0 iters=2000
+== after pool construction + narrowing
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+STREAM CREATE FAILED: cuda::cuda_error status=2 what=/home/kkristensen/Code/cuCascade/.pixi/envs/default/include/rapids/cuda/__driver/driver_api.h:255 cuDevicePrimaryCtxRetain out of memory(2): Failed to retain context for a device
+== after failed stream creation
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+exit=3
+--- raw stream creation
+## LISTED=1 timeout 60 ./build/stream_probe raw nophaseb
+pid=682169 listed={1} raw_stream=1 iters=2000
+== after pool construction + narrowing
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+STREAM CREATE FAILED (raw): cudaError=2 out of memory
+exit=3
+0, NVIDIA RTX A400, 2099 MiB, 4094 MiB
+1, NVIDIA RTX PRO 6000 Blackwell Workstation Edition, 16 MiB, 97887 MiB
+2, NVIDIA RTX PRO 6000 Blackwell Workstation Edition, 16 MiB, 97887 MiB

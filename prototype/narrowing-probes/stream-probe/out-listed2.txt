@@ -1,0 +1,90 @@
+#### listed={2} (A400)
+## LISTED=2 timeout 180 ./build/stream_probe
+pid=681850 listed={2} raw_stream=0 iters=2000
+== after pool construction + narrowing
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  [main after stream creation] cuCtxGetCurrent rc=0 ctx=(nil)
+== after private stream creation
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=1 (rc=0)
+  smi-app: 681850, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 44 MiB
+  pool[before pre-grow]: reserved=0 KiB used=0 KiB reserved_high=0 KiB threshold=18446744073709551615
+  pool[pre-grow allocated]: reserved=65536 KiB used=49152 KiB reserved_high=65536 KiB threshold=18446744073709551615
+  pool[pre-grow freed+synced]: reserved=65536 KiB used=0 KiB reserved_high=65536 KiB threshold=18446744073709551615
+  pool[32MiB allocated after pre-grow]: reserved=65536 KiB used=32768 KiB reserved_high=65536 KiB threshold=18446744073709551615
+  pre-grow ptr=0x520000000 later ptr=0x520000000
+  [bare thread] cuCtxGetCurrent rc=0 ctx=(nil)
+PHASE A(bare threads): 8 threads x 2000 iters, other_dev_current=-1: errors=0 (0.09s, 45.4 us/iter) first_err=''
+  pool[A(bare threads)]: reserved=65536 KiB used=0 KiB reserved_high=65536 KiB threshold=18446744073709551615
+== after phase A (no device ever made current by callers)
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=1 (rc=0)
+  smi-app: 681850, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 44 MiB
+DESTROY from bare thread (no current ctx): cuStreamDestroy rc=0
+  [main with other device current] cuCtxGetCurrent rc=0 ctx=0x61e93af57d40
+PHASE B0 (main thread, dev 0 current): errors=0 first_err=''
+PHASE B(other device current): 8 threads x 2000 iters, other_dev_current=0: errors=0 (0.15s, 75.4 us/iter) first_err=''
+  pool[B(other device current)]: reserved=65536 KiB used=0 KiB reserved_high=65536 KiB threshold=18446744073709551615
+== after phase B
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=1 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=1 (rc=0)
+  smi-app: 681850, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 44 MiB
+  smi-app: 681850, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 552 MiB
+DESTROY cuda::stream dtor from thread with dev 0 current: survived, current dev after=0
+DESTROY private stream (cuStreamDestroy) with dev 0 current: rc=0
+  pool[end]: reserved=65536 KiB used=0 KiB reserved_high=65536 KiB threshold=18446744073709551615
+== end
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=1 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=1 (rc=0)
+DONE
+exit=0
+#### listed={2} raw
+## LISTED=2 timeout 180 ./build/stream_probe raw
+pid=681919 listed={2} raw_stream=1 iters=2000
+== after pool construction + narrowing
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  [main after stream creation] cuCtxGetCurrent rc=0 ctx=(nil)
+== after private stream creation
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=1 (rc=0)
+  smi-app: 681919, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 44 MiB
+  pool[before pre-grow]: reserved=0 KiB used=0 KiB reserved_high=0 KiB threshold=18446744073709551615
+  pool[pre-grow allocated]: reserved=65536 KiB used=49152 KiB reserved_high=65536 KiB threshold=18446744073709551615
+  pool[pre-grow freed+synced]: reserved=65536 KiB used=0 KiB reserved_high=65536 KiB threshold=18446744073709551615
+  pool[32MiB allocated after pre-grow]: reserved=65536 KiB used=32768 KiB reserved_high=65536 KiB threshold=18446744073709551615
+  pre-grow ptr=0x520000000 later ptr=0x520000000
+  [bare thread] cuCtxGetCurrent rc=0 ctx=(nil)
+PHASE A(bare threads): 8 threads x 2000 iters, other_dev_current=-1: errors=0 (0.14s, 68.7 us/iter) first_err=''
+  pool[A(bare threads)]: reserved=65536 KiB used=0 KiB reserved_high=65536 KiB threshold=18446744073709551615
+== after phase A (no device ever made current by callers)
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=1 (rc=0)
+  smi-app: 681919, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 44 MiB
+  [main with other device current] cuCtxGetCurrent rc=0 ctx=0x581364f13d40
+PHASE B0 (main thread, dev 0 current): errors=0 first_err=''
+PHASE B(other device current): 8 threads x 2000 iters, other_dev_current=0: errors=0 (0.16s, 81.2 us/iter) first_err=''
+  pool[B(other device current)]: reserved=65536 KiB used=0 KiB reserved_high=65536 KiB threshold=18446744073709551615
+== after phase B
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=1 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=1 (rc=0)
+  smi-app: 681919, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 44 MiB
+  smi-app: 681919, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 552 MiB
+DESTROY private stream (cudaStreamDestroy) with dev 0 current: rc=0 no error
+  pool[end]: reserved=65536 KiB used=0 KiB reserved_high=65536 KiB threshold=18446744073709551615
+== end
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=1 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=1 (rc=0)
+DONE
+exit=0

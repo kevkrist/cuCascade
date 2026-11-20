@@ -1,0 +1,31 @@
+#### retry: hog 96700 MiB on CUDA dev 0 (unlisted Blackwell)
+hog dev=0 mib=96700: no error free=65MiB total=97340MiB
+0, 2177 MiB, 4094 MiB
+1, 97276 MiB, 97887 MiB
+2, 18 MiB, 97887 MiB
+## A quiet
+mode=A pid=666156 listed={1} warm=0
+TIME mode=A warm=0 create_ms=118.543 narrow_ms=0.001 total_ms=118.544
+exit=0
+## B quiet
+mode=B pid=666159 listed={1} warm=0
+TIME mode=B warm=0 create_ms=78.586 narrow_ms=1.506 total_ms=80.092
+exit=0
+## A alloc
+mode=A pid=666164 listed={1} warm=0
+TIME mode=A warm=0 create_ms=57.242 narrow_ms=0.001 total_ms=57.243
+== after construction + narrowing, before any allocation
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+exit=139
+## B alloc
+mode=B pid=666181 listed={1} warm=0
+TIME mode=B warm=0 create_ms=49.493 narrow_ms=1.339 total_ms=50.831
+== after construction + narrowing, before any allocation
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+exit=139
+[1]+  Terminated              timeout 90 ./build/hog 0 96700 60
+0, 2200 MiB
+1, 16 MiB
+2, 16 MiB

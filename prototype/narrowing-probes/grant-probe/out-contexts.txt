@@ -1,0 +1,166 @@
+######## C
+mode=C pid=659462 listed={1} warm=0
+TIME mode=C warm=0 create_ms=481.978 narrow_ms=0.000 total_ms=481.979
+== after construction + narrowing, before any allocation
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-gpu: 0, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 2069 MiB
+  smi-gpu: 1, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 18 MiB
+  smi-gpu: 2, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 18 MiB
+  is_accessible_from(0)=1
+  is_accessible_from(1)=1
+  is_accessible_from(2)=1
+== after allocate_sync(1MiB) from pool (no cudaSetDevice by us)
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=1 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-app: 659462, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 552 MiB
+  smi-gpu: 0, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 2069 MiB
+  smi-gpu: 1, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 576 MiB
+  smi-gpu: 2, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 18 MiB
+  copy pool mem -> listed device 1: no error
+== after cudaSetDevice(listed) + H2D copy
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=1 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=1 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-app: 659462, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 552 MiB
+  smi-app: 659462, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 554 MiB
+  smi-gpu: 0, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 2069 MiB
+  smi-gpu: 1, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 576 MiB
+  smi-gpu: 2, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 578 MiB
+exit=0
+######## A
+mode=A pid=659553 listed={1} warm=0
+TIME mode=A warm=0 create_ms=264.367 narrow_ms=0.001 total_ms=264.368
+== after construction + narrowing, before any allocation
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-gpu: 0, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 2069 MiB
+  smi-gpu: 1, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 18 MiB
+  smi-gpu: 2, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 18 MiB
+  is_accessible_from(0)=0
+  is_accessible_from(1)=1
+  is_accessible_from(2)=0
+== after allocate_sync(1MiB) from pool (no cudaSetDevice by us)
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=1 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-app: 659553, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 552 MiB
+  smi-gpu: 0, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 2069 MiB
+  smi-gpu: 1, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 576 MiB
+  smi-gpu: 2, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 18 MiB
+  copy pool mem -> listed device 1: no error
+== after cudaSetDevice(listed) + H2D copy
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=1 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=1 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-app: 659553, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 552 MiB
+  smi-app: 659553, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 554 MiB
+  smi-gpu: 0, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 2069 MiB
+  smi-gpu: 1, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 576 MiB
+  smi-gpu: 2, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 578 MiB
+exit=0
+######## B
+mode=B pid=659605 listed={1} warm=0
+TIME mode=B warm=0 create_ms=231.748 narrow_ms=0.496 total_ms=232.244
+== after construction + narrowing, before any allocation
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-gpu: 0, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 2069 MiB
+  smi-gpu: 1, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 18 MiB
+  smi-gpu: 2, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 18 MiB
+  is_accessible_from(0)=0
+  is_accessible_from(1)=1
+  is_accessible_from(2)=0
+== after allocate_sync(1MiB) from pool (no cudaSetDevice by us)
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=1 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-app: 659605, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 552 MiB
+  smi-gpu: 0, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 2069 MiB
+  smi-gpu: 1, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 576 MiB
+  smi-gpu: 2, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 18 MiB
+  copy pool mem -> listed device 1: no error
+== after cudaSetDevice(listed) + H2D copy
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=1 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=1 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-app: 659605, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 552 MiB
+  smi-app: 659605, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 554 MiB
+  smi-gpu: 0, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 2069 MiB
+  smi-gpu: 1, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 576 MiB
+  smi-gpu: 2, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 578 MiB
+== ownership: one handle dropped, copy alive: GetAttribute -> no error
+== ownership: last handle dropped: cudaMemPoolDestroy(raw) -> invalid argument (success would mean CCCL had NOT destroyed it)
+exit=0
+######## Brt
+mode=Brt pid=659656 listed={1} warm=0
+TIME mode=Brt warm=0 create_ms=302.967 narrow_ms=0.481 total_ms=303.448
+== after construction + narrowing, before any allocation
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-gpu: 0, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 2080 MiB
+  smi-gpu: 1, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 18 MiB
+  smi-gpu: 2, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 18 MiB
+  is_accessible_from(0)=0
+  is_accessible_from(1)=1
+  is_accessible_from(2)=0
+== after allocate_sync(1MiB) from pool (no cudaSetDevice by us)
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=1 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-app: 659656, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 552 MiB
+  smi-gpu: 0, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 2080 MiB
+  smi-gpu: 1, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 576 MiB
+  smi-gpu: 2, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 18 MiB
+  copy pool mem -> listed device 1: no error
+== after cudaSetDevice(listed) + H2D copy
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=1 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=1 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-app: 659656, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 552 MiB
+  smi-app: 659656, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 554 MiB
+  smi-gpu: 0, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 2080 MiB
+  smi-gpu: 1, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 576 MiB
+  smi-gpu: 2, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 578 MiB
+== ownership: one handle dropped, copy alive: GetAttribute -> no error
+== ownership: last handle dropped: cudaMemPoolDestroy(raw) -> invalid argument (success would mean CCCL had NOT destroyed it)
+exit=0
+######## Bdrv
+mode=Bdrv pid=659710 listed={1} warm=0
+TIME mode=Bdrv warm=0 create_ms=196.390 narrow_ms=0.508 total_ms=196.898
+== after construction + narrowing, before any allocation
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=0 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-gpu: 0, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 2135 MiB
+  smi-gpu: 1, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 18 MiB
+  smi-gpu: 2, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 18 MiB
+  is_accessible_from(0)=0
+  is_accessible_from(1)=1
+  is_accessible_from(2)=0
+== after allocate_sync(1MiB) from pool (no cudaSetDevice by us)
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=1 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=0 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-app: 659710, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 552 MiB
+  smi-gpu: 0, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 2122 MiB
+  smi-gpu: 1, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 576 MiB
+  smi-gpu: 2, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 18 MiB
+  copy pool mem -> listed device 1: no error
+== after cudaSetDevice(listed) + H2D copy
+  cuda dev 0 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-42f3362e): primary ctx active=1 (rc=0)
+  cuda dev 1 (NVIDIA RTX PRO 6000 Blackwell Workstation Edition, uuid GPU-65781d1c): primary ctx active=1 (rc=0)
+  cuda dev 2 (NVIDIA RTX A400, uuid GPU-b5cef2a5): primary ctx active=0 (rc=0)
+  smi-app: 659710, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 552 MiB
+  smi-app: 659710, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 554 MiB
+  smi-gpu: 0, GPU-b5cef2a5-07a8-06ec-5251-909eded9957c, 2122 MiB
+  smi-gpu: 1, GPU-42f3362e-bc3c-a635-343b-fc295a446b58, 576 MiB
+  smi-gpu: 2, GPU-65781d1c-fcdf-5a6a-2894-eaeedd3d3b21, 578 MiB
+== ownership: one handle dropped, copy alive: GetAttribute -> no error
+== ownership: last handle dropped: cudaMemPoolDestroy(raw) -> invalid argument (success would mean CCCL had NOT destroyed it)
+exit=0
